@@ -11,41 +11,43 @@ const ALLOWED_IDS = [
   "dogecoin",
   "tron",
   "toncoin",
-  "avalanche-2",
-  "chainlink",
-  "polkadot",
-  "litecoin",
-  "bitcoin-cash",
-  "monero",
-  "shiba-inu",
-  "uniswap",
-  "cosmos",
-  "near",
 ];
 
 export async function GET() {
-  const url =
-    "https://api.coingecko.com/api/v3/coins/markets" +
-    "?vs_currency=usd" +
-    "&order=market_cap_desc" +
-    "&per_page=100" +
-    "&page=1" +
-    "&sparkline=true" +
-    "&price_change_percentage=24h";
+  try {
+    const url =
+      "https://api.coingecko.com/api/v3/coins/markets" +
+      "?vs_currency=usd" +
+      "&order=market_cap_desc" +
+      "&per_page=50" +
+      "&page=1" +
+      "&sparkline=true" +
+      "&price_change_percentage=24h";
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "sur-koin",
-      "Accept": "application/json",
-    },
-    cache: "no-store", // 👈 CLAVE
-  });
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "sur-koin-app",
+        "Accept": "application/json",
+      },
+      next: { revalidate: 120 }, // Cache 2 minutos
+    });
 
-  const data = await res.json();
+    if (!res.ok) {
+      throw new Error(`CoinGecko API error: ${res.status}`);
+    }
 
-  const filtered = Array.isArray(data)
-    ? data.filter((c: any) => ALLOWED_IDS.includes(c.id))
-    : [];
+    const data = await res.json();
 
-  return NextResponse.json(filtered.slice(0, 20));
+    const filtered = Array.isArray(data)
+      ? data.filter((c: any) => ALLOWED_IDS.includes(c.id))
+      : [];
+
+    return NextResponse.json(filtered.slice(0, 10));
+  } catch (error) {
+    console.error("Market API error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch market data" },
+      { status: 500 }
+    );
+  }
 }

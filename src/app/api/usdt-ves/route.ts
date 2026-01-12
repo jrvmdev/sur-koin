@@ -17,27 +17,39 @@ type Ad = {
   };
 };
 
-async function fetchAllAds(tradeType: "BUY" | "SELL") {
-  const res = await fetch(BINANCE_P2P, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      asset: "USDT",
-      fiat: "VES",
-      tradeType,
-      payTypes: [],
-      page: 1,
-      rows: 20,
-      countries: [],
-      publisherType: null,
-    }),
-    cache: "no-store",
-  });
+async function fetchAllAds(tradeType: "BUY" | "SELL", retries = 3): Promise<Ad[]> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(BINANCE_P2P, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        },
+        body: JSON.stringify({
+          asset: "USDT",
+          fiat: "VES",
+          tradeType,
+          payTypes: [],
+          page: 1,
+          rows: 20,
+          countries: [],
+          publisherType: null,
+        }),
+        next: { revalidate: 60 }, // Cache 1 minuto
+      });
 
-  if (!res.ok) throw new Error("Binance P2P fetch failed");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-  const json = await res.json();
-  return json?.data || [];
+      const json = await res.json();
+      return json?.data || [];
+    } catch (err) {
+      console.error(`Retry ${i + 1}/${retries}:`, err);
+      if (i === retries - 1) throw err;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  return [];
 }
 
 function getBestPriceForRange(
@@ -46,18 +58,15 @@ function getBestPriceForRange(
   maxAmount: number,
   tradeType: "BUY" | "SELL"
 ): number | null {
-  // Filtra anuncios que cubren este rango
   const validAds = ads.filter((ad) => {
     const adMin = Number(ad.adv.minSingleTransAmount);
     const adMax = Number(ad.adv.dynamicMaxSingleTransAmount);
     const available = Number(ad.adv.tradableQuantity);
     
-    // El anuncio debe poder manejar al menos el minAmount del rango
     return adMin <= minAmount && adMax >= minAmount && available >= minAmount;
   });
 
   if (validAds.length === 0) {
-    // Fallback: toma cualquier anuncio que tenga liquidez
     const anyValid = ads.filter((ad) => {
       const available = Number(ad.adv.tradableQuantity);
       return available >= minAmount;
@@ -71,7 +80,6 @@ function getBestPriceForRange(
     return null;
   }
 
-  // Promedia los 3 mejores precios
   const prices = validAds
     .slice(0, 3)
     .map((ad) => Number(ad.adv.price));
@@ -81,7 +89,6 @@ function getBestPriceForRange(
 
 export async function GET() {
   try {
-    // Fetch todos los anuncios de compra y venta UNA SOLA VEZ
     const [buyAds, sellAds] = await Promise.all([
       fetchAllAds("BUY"),
       fetchAllAds("SELL"),
@@ -96,12 +103,10 @@ export async function GET() {
 
     const bands: Band[] = [];
 
-    // Calcula el mejor precio para cada banda
     for (const r of ranges) {
       const buy = getBestPriceForRange(buyAds, r.min, r.max, "BUY");
       const sell = getBestPriceForRange(sellAds, r.min, r.max, "SELL");
 
-      // Agrega la banda si tiene al menos un precio
       if (buy || sell) {
         bands.push({
           band: r.band,
@@ -118,7 +123,6 @@ export async function GET() {
       );
     }
 
-    // Calcula el precio medio con bandas válidas
     const validBands = bands.filter((b) => b.buy > 0 && b.sell > 0);
     const mid =
       validBands.length > 0
@@ -137,7 +141,7 @@ export async function GET() {
   } catch (err) {
     console.error("USDT/VES Error:", err);
     return NextResponse.json(
-      { error: "USDT/VES failed" },
+      { error: "USDT/VES failed", details: err instanceof Error ? err.message : 'Unknown' },
       { status: 500 }
     );
   }

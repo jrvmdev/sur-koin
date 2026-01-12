@@ -175,7 +175,8 @@ export default function Page() {
                     MCap ${(c.market_cap / 1e9).toFixed(1)}B
                   </div>
 
-                  <div className="absolute inset-0 bg-gradient-to-br from-sky-500 to-transparent opacity-0 group-hover:opacity-5 transition-opacity" />
+                  <div className="absolute inset-0 bg-linear
+                  -to-br from-sky-500 to-transparent opacity-0 group-hover:opacity-5 transition-opacity" />
                 </div>
               );
             })}
