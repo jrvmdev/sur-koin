@@ -1,11 +1,11 @@
 {
-  "name": "Sur-Koin - Crypto Tracker LATAM",
+  "name": "Sur-Koin - Radar Cripto Venezuela",
   "short_name": "Sur-Koin",
-  "description": "Track crypto prices in Latin America currencies",
+  "description": "Cotización USDT/VES en tiempo real y mercado cripto global",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e1b4b",
-  "theme_color": "#a855f7",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
   "orientation": "portrait",
   "icons": [
     {
