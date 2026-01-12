@@ -10,10 +10,21 @@ const BANDS = [
   { label: "200–500", min: 200, max: 500 },
 ];
 
+// Interfaz para tipar correctamente los anuncios de Binance
+interface Adv {
+  price: string;
+  minSingleTransAmount: string;
+  dynamicMaxSingleTransAmount: string;
+}
+
+interface BuySellAd {
+  adv: Adv;
+}
+
 async function fetchAds(
   tradeType: "BUY" | "SELL",
   fiat: string
-) {
+): Promise<BuySellAd[]> {
   const res = await fetch(BINANCE, {
     method: "POST",
     headers: {
@@ -48,7 +59,7 @@ export async function POST(req: Request) {
 
     const bands = BANDS.map(band => {
       const buyPrices = buyAds
-        .map(a => ({
+        .map((a: BuySellAd) => ({
           price: parseFloat(a.adv.price),
           min: parseFloat(a.adv.minSingleTransAmount),
           max: parseFloat(a.adv.dynamicMaxSingleTransAmount),
@@ -58,7 +69,7 @@ export async function POST(req: Request) {
         .map(x => x.price);
 
       const sellPrices = sellAds
-        .map(a => ({
+        .map((a: BuySellAd) => ({
           price: parseFloat(a.adv.price),
           min: parseFloat(a.adv.minSingleTransAmount),
           max: parseFloat(a.adv.dynamicMaxSingleTransAmount),
